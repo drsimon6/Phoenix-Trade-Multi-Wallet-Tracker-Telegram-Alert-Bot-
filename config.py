@@ -15,8 +15,8 @@ POLL_INTERVAL = 3
 # Add wallets here in the format: "WALLET_ADDRESS": "ALIAS"
 # Example:
 # TARGET_WALLETS = {
-#     "FydnpdRPUMWWqo17sxrYmkyQ6QYDJX5QaJEwFJYX2tAK": "Wallet 1 (Sample)",
-#     "SECOND_WALLET_ADDRESS": "Wallet 2 (Trader A)",
+#     "FIRST_WALLET_ADDRESS": "Wallet 1 (Trader A)",
+#     "SECOND_WALLET_ADDRESS": "Wallet 2 (Trader B)",
 # }
 TARGET_WALLETS = {
     "wallet1": "Sample Wallet", # Pre-add one sample for testing
