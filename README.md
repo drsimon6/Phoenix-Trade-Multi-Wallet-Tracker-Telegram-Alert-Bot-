@@ -5,7 +5,7 @@ A lightweight, real-time Python monitoring bot designed to track target wallets 
 
 This project is built using pure **Solana JSON-RPC API** calls, making it fast, resource-efficient, and free from heavy Web3 library dependencies.
 
-```
+
 Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot/
 ├── main.py
 ├── config.py
