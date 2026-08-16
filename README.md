@@ -32,3 +32,13 @@ Clone this repository or create a new directory on your machine:
 ```bash
 git clone [https://github.com/drsimon6/Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot-.git](https://github.com/drsimon6/Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot-.git)
 cd Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot-
+
+
+### 2. Install Dependencies
+Install the required requests library:
+
+```Bash
+pip install requests
+
+### 3. Configure and Run
+Create a config.py file in the project directory with the following content. Make sure to replace the placeholder Telegram credentials and target wallet addresses:
