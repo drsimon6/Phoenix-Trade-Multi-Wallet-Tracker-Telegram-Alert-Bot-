@@ -1,13 +1,11 @@
 
-# Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot
+# Phoenix Trade Multi-Wallet Tracker & Telegram Alert Bot 🚀
+
 ├── main.py         
 ├── config.py    
 ├── requirements.txt          
 ├── README.md      
 └── .gitignore      
-
-
-# 🚀 Phoenix Trade Multi-Wallet Tracker & Telegram Alert Bot
 
 A lightweight, real-time Python monitoring bot designed to track target wallets on **Phoenix Trade** (a Solana Perpetual DEX) and send instant alert notifications directly to Telegram.
 
