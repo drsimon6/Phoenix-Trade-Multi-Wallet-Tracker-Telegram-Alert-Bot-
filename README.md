@@ -1,15 +1,20 @@
 
-# Phoenix Trade Multi-Wallet Tracker & Telegram Alert Bot 🚀
-
-├── main.py         
-├── config.py    
-├── requirements.txt          
-├── README.md      
-└── .gitignore      
+```markdown
+# 🚀 Phoenix Trade Multi-Wallet Tracker & Telegram Alert Bot
 
 A lightweight, real-time Python monitoring bot designed to track target wallets on **Phoenix Trade** (a Solana Perpetual DEX) and send instant alert notifications directly to Telegram.
 
 This project is built using pure **Solana JSON-RPC API** calls, making it fast, resource-efficient, and free from heavy Web3 library dependencies.
+
+```text
+Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot/
+├── main.py
+├── config.py
+├── requirements.txt
+├── README.md
+└── .gitignore
+
+```
 
 ---
 
@@ -18,23 +23,22 @@ This project is built using pure **Solana JSON-RPC API** calls, making it fast, 
 * ⚡ **Multi-Wallet Tracking:** Monitor multiple wallet addresses simultaneously with custom alias names.
 * 🔍 **Phoenix Log Parsing:** Identifies specific activity types from transaction logs (Place Order, Cancel Order, Margin Adjustment, Swap).
 * 📲 **Instant Telegram Alerts:** Sends formatted notifications containing transaction status, activity summary, timestamp, and a direct Solscan link.
-* 🛠 **Lightweight & Independent:** Runs seamlessly on local machines, PyCharm, or any Linux VPS.
+* 🛠 **Lightweight & Independent:** Runs seamlessly inside an isolated virtual environment on local machines or Linux VPS servers.
 
 ---
 
 ## 🛠 Prerequisites
 
 * **Python 3.8** or higher
+* **Git** installed on your system
 * A Telegram Bot (Created via `@BotFather`)
 * Your Telegram Chat ID (Obtained via `@userinfobot`)
 
 ---
 
-## 🚀 Quick Start (Local Setup / PyCharm)
+## 🚀 Quick Start (Local Setup)
 
 ### 1. Clone the Repository
-
-Clone this repository or create a new directory on your machine:
 
 ```bash
 git clone [https://github.com/drsimon6/Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot-.git](https://github.com/drsimon6/Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot-.git)
@@ -42,43 +46,43 @@ cd Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot-
 
 ```
 
-### 2. Install Dependencies
+### 2. Set Up Virtual Environment & Install Dependencies
 
-Install the required `requests` library:
+Create an isolated Python virtual environment and install requirements:
 
 ```bash
-pip install requests
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
+pip install -r requirements.txt
 
 ```
 
-### 3. Configure and Run
+### 3. Configure Credentials
 
-1. **Create a `config.py` file** in the project directory with the following content. Make sure to replace the placeholder Telegram credentials and target wallet addresses:
+Create a `config.py` file in the project root directory:
 
 ```python
 # === Bot Configuration ===
-# Set your Solana RPC URL. (Use Helius/QuickNode for lower latency)
+# Solana RPC Endpoint (Use Helius or QuickNode for lower latency)
 RPC_URL = "[https://api.mainnet-beta.solana.com](https://api.mainnet-beta.solana.com)"
 
-# Set your Telegram Bot Token (e.g., "123456789:AAHg...")
+# Telegram Bot Credentials
 TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-
-# Set your Telegram Chat ID (e.g., "987654321")
 TELEGRAM_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID"
 
 # Polling interval in seconds
 POLL_INTERVAL = 3
 
 # === Wallets to Monitor ===
-# Add wallets here in the format: "WALLET_ADDRESS": "ALIAS"
+# Format: "WALLET_ADDRESS": "ALIAS_NAME"
 TARGET_WALLETS = {
-    "FIRST_WALLET_ADDRESSt ": "Wallet 1 (Trader A)",
-    # "SECOND_WALLET_ADDRESS": "Wallet 2 (Trader B)",
+    "FydnpdRPUMWWqo17sxrYmkyQ6QYDJX5QaJEwFJYX2tAK": "Wallet 1 (Sample)",
+    # "SECOND_WALLET_ADDRESS": "Wallet 2 (Trader A)",
 }
 
 ```
 
-2. **Run the bot:**
+### 4. Run the Bot
 
 ```bash
 python main.py
@@ -89,43 +93,62 @@ python main.py
 
 ## 🌐 24/7 VPS Deployment (Ubuntu via Termius)
 
-To run the bot continuously on a Linux VPS (Ubuntu 22.04/24.04):
+Follow these steps to deploy and run the bot continuously on a Linux VPS (Ubuntu 22.04 / 24.04).
 
-1. **Update and Install Dependencies:**
+### 1. Install System Dependencies & Git
 
 ```bash
-sudo apt update && sudo apt install python3 python3-pip screen -y
-pip3 install requests
+sudo apt update && sudo apt install git python3 python3-pip python3-venv screen -y
 
 ```
 
-2. **Clone and Create Config File:**
+### 2. Clone Repository & Navigate
 
 ```bash
 git clone [https://github.com/drsimon6/Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot-.git](https://github.com/drsimon6/Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot-.git)
 cd Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot-
+
+```
+
+### 3. Create Virtual Environment & Install Requirements
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+```
+
+### 4. Create Configuration File
+
+```bash
 nano config.py
 
 ```
 
-*(Paste the `config.py` content from the step above, configure your credentials, save with `Ctrl + O`, `Enter`, and exit with `Ctrl + X`)*
+*(Paste your `config.py` content, edit your credentials/wallets, save with `Ctrl + O`, press `Enter`, and exit with `Ctrl + X`)*
 
-3. **Run in Background Session:**
+### 5. Run Inside a Dedicated Screen Session
+
+Launch a background screen session named `phoenix-bot`:
 
 ```bash
-screen -S phoenix
-python3 main.py
+screen -S phoenix-bot
+source .venv/bin/activate
+python main.py
 
 ```
 
-*To detach from the screen session without stopping the bot, press **`Ctrl + A`** then **`D`**.*
+### 6. Detach & Re-attach Screen Session
 
-4. **Re-attach to Session Later:**
-
+* **Safely Detach:** Press **`Ctrl + A`**, then press **`D`**. The bot will keep running in the background, and you can safely close your terminal.
+* **Re-attach Later:** To check bot logs or manage the execution later, run:
 ```bash
-screen -r phoenix
+screen -r phoenix-bot
 
 ```
+
+
 
 ---
 
@@ -135,4 +158,4 @@ This project is created strictly for educational and monitoring purposes. It doe
 
 ```
 
----
+```
