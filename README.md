@@ -63,7 +63,7 @@ Create a `config.py` file in the project root directory:
 ```python
 # === Bot Configuration ===
 # Solana RPC Endpoint (Use Helius or QuickNode for lower latency)
-RPC_URL = "[https://api.mainnet-beta.solana.com](https://api.mainnet-beta.solana.com)"
+RPC_URL = "https://api.mainnet-beta.solana.com"
 
 # Telegram Bot Credentials
 TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
@@ -75,8 +75,8 @@ POLL_INTERVAL = 3
 # === Wallets to Monitor ===
 # Format: "WALLET_ADDRESS": "ALIAS_NAME"
 TARGET_WALLETS = {
-    "FydnpdRPUMWWqo17sxrYmkyQ6QYDJX5QaJEwFJYX2tAK": "Wallet 1 (Sample)",
-    # "SECOND_WALLET_ADDRESS": "Wallet 2 (Trader A)",
+    # "FIRST_WALLET_ADDRESS": "Wallet 1 (Trader A)",
+    # "SECOND_WALLET_ADDRESS": "Wallet 2 (Trader B)",
 }
 
 ```
