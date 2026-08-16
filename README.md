@@ -134,6 +134,8 @@ Launch a background screen session named `phoenix-bot`:
 ```bash
 screen -S phoenix-bot
 source .venv/bin/activate
+```
+```bash
 python main.py
 
 ```
