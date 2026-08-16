@@ -35,6 +35,7 @@ cd Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot- ```
 
 
 ### 2. Install Dependencies
+
 Install the required requests library:
 
 ```Bash
