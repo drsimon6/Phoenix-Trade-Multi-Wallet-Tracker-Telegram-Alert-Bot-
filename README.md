@@ -2,7 +2,7 @@
 #### Phoenix-Trade-Multi-Wallet-Tracker-Telegram-Alert-Bot/
 ├── main.py         
 ├── config.py    
-├── requirements.txt 
+├── requirements.txt          
 ├── README.md      
 └── .gitignore      
 
