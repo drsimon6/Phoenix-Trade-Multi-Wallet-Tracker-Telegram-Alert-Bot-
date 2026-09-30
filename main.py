@@ -1,17 +1,60 @@
+import asyncio
+import aiohttp
 import time
-import requests
 from datetime import datetime
-import config # Import user configuration
+import sys
+import itertools
+import importlib
 
-# Replace old constants with config values
-TARGET_WALLETS = config.TARGET_WALLETS
-RPC_URL = config.RPC_URL
-TELEGRAM_BOT_TOKEN = config.TELEGRAM_BOT_TOKEN
-TELEGRAM_CHAT_ID = config.TELEGRAM_CHAT_ID
-POLL_INTERVAL = config.POLL_INTERVAL
+# --- Dynamic Configuration Loader ---
+# دریافت نام فایل کانفیگ از ورودی ترمینال (پیش‌فرض: config)
+config_arg = sys.argv[1] if len(sys.argv) > 1 else "config"
+if config_arg.endswith(".py"):
+    config_arg = config_arg[:-3]
+
+try:
+    config = importlib.import_module(config_arg)
+    print(f"⚙️ Loaded configuration file: {config_arg}.py")
+except ImportError:
+    print(f"\n⚠️ Error: '{config_arg}.py' not found! Please make sure the config file exists.")
+    sys.exit(1)
+
+# Wallet & Telegram Configuration
+TARGET_WALLETS = getattr(config, 'TARGET_WALLETS', {})
+POLL_INTERVAL = getattr(config, 'POLL_INTERVAL', 1)
+TELEGRAM_BOT_TOKEN = getattr(config, 'TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_CHAT_ID = getattr(config, 'TELEGRAM_CHAT_ID', '')
+
+# Official Phoenix Program IDs on Solana Mainnet
+PHOENIX_PROGRAMS = {
+    "PhoeNiX2EyyJBKw5EaWZbg8hkfz3DcjMBNfmsyJR8qQ": "Phoenix Spot 🦅",
+    "EtrnLzgbS7nMMy5fbD42kXiUzGg8XQzJ972Xtk1cjWih": "Phoenix Eternal (Perps) ⚡"
+}
+
+# Helius RPC Setup
+HELIUS_API_KEYS = getattr(config, 'HELIUS_API_KEYS', [])
+if not HELIUS_API_KEYS and hasattr(config, 'HELIUS_API_KEY') and config.HELIUS_API_KEY:
+    HELIUS_API_KEYS = [config.HELIUS_API_KEY]
+
+if HELIUS_API_KEYS:
+    RPC_URLS = [f"https://mainnet.helius-rpc.com/?api-key={k}" for k in HELIUS_API_KEYS if k and "your-" not in k]
+    if RPC_URLS:
+        helius_cycle = itertools.cycle(RPC_URLS)
+    else:
+        RPC_URLS = getattr(config, 'RPC_URLS', ["https://api.mainnet-beta.solana.com"])
+        helius_cycle = None
+else:
+    RPC_URLS = getattr(config, 'RPC_URLS', ["https://api.mainnet-beta.solana.com"])
+    helius_cycle = None
 
 
-def send_telegram_alert(message: str):
+def get_next_rpc_url():
+    if helius_cycle:
+        return next(helius_cycle)
+    return RPC_URLS[0]
+
+
+async def send_telegram_alert(session: aiohttp.ClientSession, message: str):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -22,121 +65,140 @@ def send_telegram_alert(message: str):
         "disable_web_page_preview": True
     }
     try:
-        requests.post(url, json=payload, timeout=5)
+        async with session.post(url, json=payload, timeout=5) as resp:
+            pass
     except Exception as e:
-        print(f"⚠️ Telegram Alert Error: {e}")
+        print(f"⚠️ Telegram Error: {e}")
 
 
-def get_latest_signatures(wallet_address: str, limit: int = 3):
-    payload = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "getSignaturesForAddress",
-        "params": [wallet_address, {"limit": limit}]
-    }
-    try:
-        response = requests.post(RPC_URL, json=payload, timeout=10)
-        data = response.json()
-        if "result" in data:
-            return data["result"]
-    except Exception as e:
-        print(f"⚠️ Solana RPC Error: {e}")
-    return []
-
-
-def get_transaction_details(signature: str):
-    payload = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "getTransaction",
-        "params": [
-            signature,
-            {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}
-        ]
-    }
-    try:
-        response = requests.post(RPC_URL, json=payload, timeout=10)
-        data = response.json()
-        if "result" in data and data["result"]:
-            return data["result"]
-    except Exception as e:
-        print(f"⚠️ Transaction Details Error: {e}")
+async def fetch_rpc(session: aiohttp.ClientSession, method: str, params: list):
+    payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+    attempts = len(RPC_URLS) if RPC_URLS else 1
+    for _ in range(attempts):
+        rpc_url = get_next_rpc_url()
+        try:
+            async with session.post(rpc_url, json=payload, timeout=5) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if "result" in data:
+                        return data["result"]
+        except Exception:
+            continue
     return None
 
 
-def parse_logs_for_phoenix(logs):
+def get_phoenix_type(tx_info: dict) -> str:
+    """Detects whether the transaction interacted with Phoenix Spot or Eternal."""
+    if not tx_info:
+        return None
+    try:
+        message = tx_info.get("transaction", {}).get("message", {})
+        account_keys = message.get("accountKeys", [])
+        for acc in account_keys:
+            pubkey = acc.get("pubkey") if isinstance(acc, dict) else acc
+            if pubkey in PHOENIX_PROGRAMS:
+                return PHOENIX_PROGRAMS[pubkey]
+    except Exception:
+        pass
+    return None
+
+
+def quick_detect_action(logs: list) -> str:
+    """Parses transaction logs to determine the action type."""
     if not logs:
-        return "General Solana Transaction"
+        return "⚡ معامله / مدیریت سفارش"
+    
     logs_str = " ".join(logs).lower()
-    if "ember" in logs_str or "phusd" in logs_str:
-        return "🔥 Phoenix Activity (Margin / Deposit / Withdraw)"
-    elif "place" in logs_str or "order" in logs_str:
-        return "⚡ Place / Fill Order"
+    if "placelimit" in logs_str or "place_limit" in logs_str:
+        return "📥 ثبت سفارش لیمیت (Limit Order)"
+    elif "placemarket" in logs_str or "place_market" in logs_str:
+        return "⚡ معامله مارکت (Market Order)"
     elif "cancel" in logs_str:
-        return "❌ Cancel Order"
-    elif "swap" in logs_str:
-        return "🔄 Instant Swap"
-    else:
-        return "📊 Phoenix Contract Interaction"
+        return "❌ لغو سفارش (Cancel Order)"
+    
+    return "⚡ معامله / مدیریت سفارش"
 
 
-def start_monitoring():
-    print("🚀 Phoenix Wallet Monitoring Bot Started...")
-    last_processed_signatures = {}
+async def monitor_wallet(session: aiohttp.ClientSession, wallet_addr: str, wallet_name: str, last_signatures: dict):
+    sigs = await fetch_rpc(session, "getSignaturesForAddress", [wallet_addr, {"limit": 20}])
+    if not sigs:
+        return
 
-    for wallet_addr, wallet_name in TARGET_WALLETS.items():
-        initial_sigs = get_latest_signatures(wallet_addr, limit=1)
-        last_processed_signatures[wallet_addr] = initial_sigs[0]["signature"] if initial_sigs else None
-        time.sleep(0.3)
+    last_sig = last_signatures.get(wallet_addr)
+    if last_sig is None:
+        last_signatures[wallet_addr] = sigs[0]["signature"]
+        print(f"✅ Monitoring active for [{wallet_name}] ({wallet_addr[:6]}...)")
+        return
 
-    send_telegram_alert("🚀 <b>Phoenix Monitoring Bot is live and listening for new transactions.</b>")
+    new_sigs = []
+    for sig_info in sigs:
+        sig = sig_info["signature"]
+        if sig == last_sig:
+            break
+        new_sigs.append(sig_info)
 
-    while True:
-        try:
-            for wallet_addr, wallet_name in TARGET_WALLETS.items():
-                signatures = get_latest_signatures(wallet_addr, limit=5)
-                if not signatures:
-                    continue
+    if new_sigs:
+        last_signatures[wallet_addr] = new_sigs[0]["signature"]
 
-                last_sig = last_processed_signatures.get(wallet_addr)
-                new_txs = []
-                for sig_info in signatures:
-                    sig = sig_info["signature"]
-                    if sig == last_sig:
-                        break
-                    new_txs.append(sig_info)
+        for sig_info in reversed(new_sigs):
+            sig = sig_info["signature"]
+            err = sig_info.get("err")
+            block_time = sig_info.get("blockTime")
+            
+            tx_info = await fetch_rpc(session, "getTransaction", [sig, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}])
+            
+            # Filter non-Phoenix transactions
+            phoenix_market_type = get_phoenix_type(tx_info)
+            if not phoenix_market_type:
+                continue
 
-                if new_txs:
-                    for tx_info in reversed(new_txs):
-                        sig = tx_info["signature"]
-                        err = tx_info.get("err")
-                        block_time = tx_info.get("blockTime")
-                        
-                        time_str = datetime.fromtimestamp(block_time).strftime('%Y-%m-%d %H:%M:%S') if block_time else "Unknown"
-                        status = "❌ Failed" if err else "✅ Success"
+            time_str = datetime.fromtimestamp(block_time).strftime('%Y-%m-%d %H:%M:%S') if block_time else "Unknown"
+            status = "❌ Failed" if err else "✅ Success"
 
-                        tx_details = get_transaction_details(sig)
-                        logs = tx_details["meta"]["logMessages"] if tx_details and "meta" in tx_details and tx_details["meta"].get("logMessages") else []
-                        action_summary = parse_logs_for_phoenix(logs)
+            raw_logs = tx_info.get("meta", {}).get("logMessages", []) if tx_info else []
+            action_type = quick_detect_action(raw_logs)
+            phoenix_portfolio_url = f"https://www.phoenix.trade/portfolio?ghost={wallet_addr}"
 
-                        alert_text = (
-                            f"🔔 <b>New Transaction Detected!</b>\n\n"
-                            f"🏷 <b>Wallet Alias:</b> {wallet_name}\n"
-                            f"👤 <b>Address:</b> <code>{wallet_addr[:6]}...{wallet_addr[-4:]}</code>\n"
-                            f"📌 <b>Activity:</b> {action_summary}\n"
-                            f"📊 <b>Status:</b> {status}\n"
-                            f"⏰ <b>Time:</b> {time_str}\n\n"
-                            f"🔗 <a href='https://solscan.io/tx/{sig}'>View on Solscan</a>"
-                        )
-                        send_telegram_alert(alert_text)
-                        last_processed_signatures[wallet_addr] = sig
+            alert_text = (
+                f"🦅 <b>تراکنش جدید Phoenix ثبت شد!</b>\n\n"
+                f"🏷 <b>نام ولت:</b> {wallet_name}\n"
+                f"🏢 <b>بخش:</b> {phoenix_market_type}\n"
+                f"👤 <b>آدرس:</b> <code>{wallet_addr[:6]}...{wallet_addr[-4:]}</code>\n"
+                f"📌 <b>نوع دستور:</b> {action_type}\n"
+                f"📊 <b>وضعیت:</b> {status}\n"
+                f"⏰ <b>زمان:</b> {time_str}\n\n"
+                f"💡 <i>جهت مشاهده جزئیات پوزیشن و پورتفولیو:</i>\n"
+                f"🔗 <a href='https://solscan.io/tx/{sig}'>مشاهده تراکنش در Solscan</a>\n"
+                f"🦅 <a href='{phoenix_portfolio_url}'>مشاهده پورتفولیو زنده در Phoenix</a>"
+            )
 
-                time.sleep(0.3)
-            time.sleep(POLL_INTERVAL)
-        except Exception as e:
-            print(f"⚠️ Main Loop Error: {e}")
-            time.sleep(5)
+            asyncio.create_task(send_telegram_alert(session, alert_text))
+            print(f"⚡ Alert sent [{phoenix_market_type}] for {wallet_name}: {sig[:8]}")
+
+
+async def main():
+    print(f"🚀 Phoenix Tracker Active using [{config_arg}.py]...")
+    last_signatures = {}
+
+    async with aiohttp.ClientSession() as session:
+        await send_telegram_alert(session, f"🚀 <b>Phoenix Multi-Wallet Tracker Active ({config_arg}.py).</b>")
+
+        while True:
+            start_time = time.time()
+            
+            tasks = [
+                monitor_wallet(session, addr, name, last_signatures)
+                for addr, name in TARGET_WALLETS.items()
+            ]
+            await asyncio.gather(*tasks)
+
+            elapsed = time.time() - start_time
+            sleep_time = max(0.1, POLL_INTERVAL - elapsed)
+            await asyncio.sleep(sleep_time)
 
 
 if __name__ == "__main__":
-    start_monitoring()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nBot Stopped.")
